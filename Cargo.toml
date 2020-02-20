@@ -7,6 +7,9 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-# rltk = { version = "0.6.2" }
-rltk = { git = "https://github.com/thebracket/rltk_rs", rev = "1c281a1d5afbc3ff8cdc16f9a1e7e199b02ab642" }
 specs = { version = "0.16.0", features = ["specs-derive"] }
+
+[dependencies.rltk]
+path = "../rltk_rs"
+# git = "https://github.com/thebracket/rltk_rs"
+# rev = "1c281a1d5afbc3ff8cdc16f9a1e7e199b02ab642"

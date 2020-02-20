@@ -5,7 +5,8 @@ use crate::{
 use rltk::{RandomNumberGenerator, RGB};
 use specs::prelude::*;
 
-const MAX_MONSTERS: i32 = 3;
+const MAX_MONSTERS: i32 = 1;
+const MIN_MONSTERS: i32 = 1;
 const MAX_ITEMS: i32 = 2;
 
 /// Spawns the player and returns his/her entity object.
@@ -23,7 +24,6 @@ pub fn player(world: &mut World, initial_player_pos: Position) -> Entity {
         .with(Name {
             name: "Player".to_owned(),
         })
-        .with(BlocksTile {})
         .with(Viewshed {
             visible_tiles: Vec::new(),
             range: 8,
@@ -72,7 +72,7 @@ fn generate_monsters_for_room(
 ) -> Vec<usize> {
     let mut monsters = Vec::new();
 
-    let num_monsters = rng.roll_dice(1, MAX_MONSTERS + 2) - 3;
+    let num_monsters = rng.range(MIN_MONSTERS, MAX_MONSTERS + 1);
 
     for _i in 0..num_monsters {
         let mut added = false;
@@ -93,7 +93,7 @@ fn generate_monsters_for_room(
 fn generate_items_for_room(rng: &mut RandomNumberGenerator, room: &Rect, map: &Map) -> Vec<usize> {
     let mut items = Vec::new();
 
-    let num_items = rng.roll_dice(1, MAX_ITEMS + 2) - 3;
+    let num_items = rng.range(MIN_MONSTERS, MAX_MONSTERS + 1);
 
     for _i in 0..num_items {
         let mut added = false;

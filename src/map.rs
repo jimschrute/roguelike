@@ -4,9 +4,9 @@ use rltk::{Algorithm2D, BaseMap, Console, Point, RandomNumberGenerator, Rltk, RG
 use specs::Entity;
 use std::cmp::{max, min};
 
-pub const MAP_WIDTH: i32 = 80;
-pub const MAP_HEIGHT: i32 = 43;
-pub const MAX_ROOMS: usize = 20;
+pub const MAP_WIDTH: i32 = 15;
+pub const MAP_HEIGHT: i32 = 15;
+pub const MAX_ROOMS: usize = 2;
 pub const MAP_SIZE: usize = (MAP_WIDTH * MAP_HEIGHT) as usize;
 pub const MIN_ROOM_SIZE: i32 = 3;
 pub const MAX_ROOM_SIZE: i32 = 6;
@@ -17,6 +17,7 @@ pub enum TileType {
     Wall,
 }
 
+#[derive(PartialEq, Clone)]
 pub struct Map {
     pub tiles: Vec<TileType>,
     pub rooms: Vec<Rect>,
@@ -33,12 +34,22 @@ impl BaseMap for Map {
         self.tiles[idx as usize] == TileType::Wall
     }
 
+    // fn get_pathing_distance(&self, idx1: usize, idx2: usize) -> f32 {
+    //     let pos1 = self.pos_from_idx(idx1);
+    //     let pos2 = self.pos_from_idx(idx2);
+    //     let p1 = Point::new(pos1.x, pos1.y);
+    //     let p2 = Point::new(pos2.x, pos2.y);
+    //     let distance = rltk::DistanceAlg::Pythagoras.distance2d(p1, p2);
+    //     println!("pathing distance is {:?}", distance);
+    //     distance
+    // }
+
     fn get_pathing_distance(&self, idx1: usize, idx2: usize) -> f32 {
-        let pos1 = self.pos_from_idx(idx1);
-        let pos2 = self.pos_from_idx(idx2);
-        let p1 = Point::new(pos1.x, pos1.y);
-        let p2 = Point::new(pos2.x, pos2.y);
-        rltk::DistanceAlg::Pythagoras.distance2d(p1, p2)
+        let w = self.width as usize;
+        let p1 = Point::new(idx1 % w, idx1 / w);
+        let p2 = Point::new(idx2 % w, idx2 / w);
+        let distance = rltk::DistanceAlg::Pythagoras.distance2d(p1, p2);
+        distance
     }
 
     fn get_available_exits(&self, idx: usize) -> Vec<(usize, f32)> {
@@ -207,22 +218,18 @@ impl Map {
     }
 
     fn apply_horizontal_tunnel(&mut self, x1: i32, x2: i32, y: i32) {
-        println!("applying horizontal tunnel x1: {} x2: {} y: {}", x1, x2, y);
         for x in min(x1, x2)..=max(x1, x2) {
             let idx = self.xy_idx(x, y);
             if idx > 0 && idx < 80 * 50 {
-                println!("floor: x: {} y: {}", x, y);
                 self.tiles[idx as usize] = TileType::Floor;
             }
         }
     }
 
     fn apply_vertical_tunnel(&mut self, y1: i32, y2: i32, x: i32) {
-        println!("applying vertical tunnel y1: {} y2: {} x: {}", y1, y2, x);
         for y in min(y1, y2)..=max(y1, y2) {
             let idx = self.xy_idx(x, y);
             if idx > 0 && idx < 80 * 50 {
-                println!("floor: x: {} y: {}", x, y);
                 self.tiles[idx as usize] = TileType::Floor;
             }
         }
@@ -303,7 +310,7 @@ impl Map {
         !self.blocked_tiles[idx]
     }
 
-    fn is_floor_available(&self, x: i32, y: i32) -> bool {
+    pub fn is_floor_available(&self, x: i32, y: i32) -> bool {
         self.is_inside_map(x, y) && !self.blocked_tiles[self.xy_idx(x, y)]
     }
 }

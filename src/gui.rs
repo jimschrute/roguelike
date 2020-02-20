@@ -259,3 +259,61 @@ pub fn show_backpack_menu(game_state: &mut State, ctx: &mut Rltk, title: &str) -
         },
     }
 }
+
+pub fn show_path(map: &Map, player_position: &Point, ctx: &mut Rltk) {
+    use rltk::Algorithm2D;
+    // Either render the proposed path or run along it
+    // if game_state. == RunState::Waiting {
+    // Render a mouse cursor
+    let mouse_pos = ctx.mouse_pos();
+    if !map.is_inside_map(mouse_pos.0, mouse_pos.1) {
+        return;
+    }
+
+    let mouse_idx = map.point2d_to_index(Point::new(mouse_pos.0, mouse_pos.1));
+    let player_idx = map.point2d_to_index(*player_position);
+    let map_pos = map.pos_from_idx(mouse_idx);
+
+    ctx.print_color(
+        mouse_pos.0,
+        mouse_pos.1,
+        RGB::from_f32(0.0, 1.0, 1.0),
+        RGB::from_f32(0.0, 1.0, 1.0),
+        "X",
+    );
+
+    if map.is_floor_available(map_pos.x, map_pos.y) {
+        println!(
+            "calculating star search start {} end {}",
+            player_idx, mouse_idx
+        );
+        let path = rltk::a_star_search(player_idx, mouse_idx, map);
+        println!("path success {}\n >> steps {:?}", path.success, path.steps);
+        if path.success {
+            for step in path.steps.iter().skip(1) {
+                let step_pos = map.pos_from_idx(*step);
+                ctx.print_color(
+                    step_pos.x,
+                    step_pos.y,
+                    RGB::from_f32(1., 0., 0.),
+                    RGB::from_f32(0., 0., 0.),
+                    "*",
+                );
+            }
+
+            // if ctx.left_click {
+            //     self.mode = Mode::Moving;
+            //     self.path = path.clone();
+            // }
+        }
+    }
+    // }
+
+    // else {
+    //     self.player_position = self.path.steps[0] as usize;
+    //     self.path.steps.remove(0);
+    //     if self.path.steps.is_empty() {
+    //         self.mode = Mode::Waiting;
+    //     }
+    // }
+}

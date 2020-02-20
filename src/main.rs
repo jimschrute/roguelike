@@ -58,9 +58,15 @@ impl State {
     }
 
     fn run_systems_and_update_state(&mut self, ctx: &mut Rltk) {
+        let map = (*self.world.fetch::<Map>()).clone();
         let run_state = *self.world.fetch::<RunState>();
+
         let new_state = match run_state {
-            RunState::AwaitingInput => player_input(self, ctx),
+            RunState::AwaitingInput => {
+                let player_position = *self.world.fetch::<Point>();
+                gui::show_path(&map, &player_position, ctx);
+                player_input(self, ctx)
+            }
             RunState::PreRun => {
                 self.run_systems();
                 RunState::AwaitingInput
@@ -112,8 +118,6 @@ impl State {
         map_indexing.run_now(&self.world);
         let mut visibility = systems::Visibility {};
         visibility.run_now(&self.world);
-        let mut monster_ai = systems::MonsterAI {};
-        monster_ai.run_now(&self.world);
         let mut melee_combat = systems::MeleeCombat {};
         melee_combat.run_now(&self.world);
         let mut damage = systems::Damage {};
@@ -124,6 +128,8 @@ impl State {
         potion_usage.run_now(&self.world);
         let mut item_drop = systems::ItemDrop {};
         item_drop.run_now(&self.world);
+        let mut monster_ai = systems::MonsterAI {};
+        monster_ai.run_now(&self.world);
         self.world.maintain();
     }
 }
@@ -149,7 +155,7 @@ fn main() {
     gs.world.register::<WantsToDrinkPotion>();
     gs.world.register::<WantsToDropItem>();
 
-    let seed: u64 = 25021990;
+    let seed: u64 = 123456;
     let mut rng = rltk::RandomNumberGenerator::seeded(seed);
 
     let map = Map::new_rooms_and_corridors(&mut rng);

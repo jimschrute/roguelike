@@ -1,5 +1,5 @@
 use crate::{Map, Monster, Name, Position, RunState, Viewshed, WantsToMelee};
-use rltk::{console, Point};
+use rltk::{console, Algorithm2D, Point};
 use specs::prelude::*;
 
 pub struct MonsterAI {}
@@ -58,16 +58,16 @@ impl<'a> System<'a> for MonsterAI {
                     return;
                 }
 
-                let start = map.xy_idx(pos.x, pos.y);
-                let end = map.xy_idx(player_pos.x, player_pos.y);
+                let start = map.point2d_to_index(Point::new(pos.x, pos.y));
+                let end = map.point2d_to_index(Point::new(player_pos.x, player_pos.y));
                 console::log(format!(
                     "calculating star search start {} end {}",
                     start, end
                 ));
-                let path = rltk::a_star_search(start, end, &mut *map);
+                let path = rltk::a_star_search(start, end, &*map);
                 console::log(format!(
-                    "monster_pos {:?}, player_pos {:?}, path success {}\n >> steps {:?}",
-                    pos, *player_pos, path.success, path.steps
+                    "path success {}\n >> steps {:?}",
+                    path.success, path.steps
                 ));
 
                 if path.success && path.steps.len() > 1 {
