@@ -5,9 +5,10 @@ use crate::{
 use rltk::{RandomNumberGenerator, RGB};
 use specs::prelude::*;
 
-const MAX_MONSTERS: i32 = 1;
-const MIN_MONSTERS: i32 = 1;
+const MAX_MONSTERS: i32 = 4;
+const MIN_MONSTERS: i32 = 0;
 const MAX_ITEMS: i32 = 2;
+const MIN_ITEMS: i32 = 0;
 
 /// Spawns the player and returns his/her entity object.
 pub fn player(world: &mut World, initial_player_pos: Position) -> Entity {
@@ -93,7 +94,7 @@ fn generate_monsters_for_room(
 fn generate_items_for_room(rng: &mut RandomNumberGenerator, room: &Rect, map: &Map) -> Vec<usize> {
     let mut items = Vec::new();
 
-    let num_items = rng.range(MIN_MONSTERS, MAX_MONSTERS + 1);
+    let num_items = rng.range(MIN_ITEMS, MAX_ITEMS + 1);
 
     for _i in 0..num_items {
         let mut added = false;

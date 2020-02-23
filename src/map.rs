@@ -4,9 +4,9 @@ use rltk::{Algorithm2D, BaseMap, Console, Point, RandomNumberGenerator, Rltk, RG
 use specs::Entity;
 use std::cmp::{max, min};
 
-pub const MAP_WIDTH: i32 = 15;
-pub const MAP_HEIGHT: i32 = 15;
-pub const MAX_ROOMS: usize = 2;
+pub const MAP_WIDTH: i32 = 80;
+pub const MAP_HEIGHT: i32 = 43;
+pub const MAX_ROOMS: usize = 20;
 pub const MAP_SIZE: usize = (MAP_WIDTH * MAP_HEIGHT) as usize;
 pub const MIN_ROOM_SIZE: i32 = 3;
 pub const MAX_ROOM_SIZE: i32 = 6;
@@ -34,65 +34,17 @@ impl BaseMap for Map {
         self.tiles[idx as usize] == TileType::Wall
     }
 
-    // fn get_pathing_distance(&self, idx1: usize, idx2: usize) -> f32 {
-    //     let pos1 = self.pos_from_idx(idx1);
-    //     let pos2 = self.pos_from_idx(idx2);
-    //     let p1 = Point::new(pos1.x, pos1.y);
-    //     let p2 = Point::new(pos2.x, pos2.y);
-    //     let distance = rltk::DistanceAlg::Pythagoras.distance2d(p1, p2);
-    //     println!("pathing distance is {:?}", distance);
-    //     distance
-    // }
-
     fn get_pathing_distance(&self, idx1: usize, idx2: usize) -> f32 {
-        let w = self.width as usize;
-        let p1 = Point::new(idx1 % w, idx1 / w);
-        let p2 = Point::new(idx2 % w, idx2 / w);
+        let pos1 = self.pos_from_idx(idx1);
+        let pos2 = self.pos_from_idx(idx2);
+        let p1 = Point::new(pos1.x, pos1.y);
+        let p2 = Point::new(pos2.x, pos2.y);
         let distance = rltk::DistanceAlg::Pythagoras.distance2d(p1, p2);
         distance
     }
 
     fn get_available_exits(&self, idx: usize) -> Vec<(usize, f32)> {
-        let avfloors1 = self.get_available_floors(idx);
-        let mut exits: Vec<(usize, f32)> = Vec::new();
-        let x = idx as i32 % self.width;
-        let y = idx as i32 / self.width;
-        let w = self.width as usize;
-
-        // Cardinal directions
-        if self.is_exit_valid(x - 1, y) {
-            exits.push((idx - 1, 1.0))
-        };
-        if self.is_exit_valid(x + 1, y) {
-            exits.push((idx + 1, 1.0))
-        };
-        if self.is_exit_valid(x, y - 1) {
-            exits.push((idx - w, 1.0))
-        };
-        if self.is_exit_valid(x, y + 1) {
-            exits.push((idx + w, 1.0))
-        };
-
-        // Diagonals
-        if self.is_exit_valid(x - 1, y - 1) {
-            exits.push(((idx - w) - 1, 1.45));
-        }
-        if self.is_exit_valid(x + 1, y - 1) {
-            exits.push(((idx - w) + 1, 1.45));
-        }
-        if self.is_exit_valid(x - 1, y + 1) {
-            exits.push(((idx + w) - 1, 1.45));
-        }
-        if self.is_exit_valid(x + 1, y + 1) {
-            exits.push(((idx + w) + 1, 1.45));
-        }
-        // println!("exits idx {} ... {:?}", idx, exits);
-
-        if false {
-            exits
-        } else {
-            avfloors1
-        }
+        self.get_available_floors(idx)
     }
 }
 
@@ -105,6 +57,10 @@ impl Algorithm2D for Map {
 impl Map {
     pub fn is_inside_map(&self, x: i32, y: i32) -> bool {
         x >= 0 && x <= self.width && y >= 0 && y <= self.height
+    }
+
+    pub fn is_floor_available(&self, x: i32, y: i32) -> bool {
+        self.is_inside_map(x, y) && !self.blocked_tiles[self.xy_idx(x, y)]
     }
 
     pub fn xy_idx(&self, x: i32, y: i32) -> usize {
@@ -300,17 +256,5 @@ impl Map {
 
     fn north_west_idx(&self, idx: usize) -> usize {
         self.west_idx(self.north_idx(idx))
-    }
-
-    fn is_exit_valid(&self, x: i32, y: i32) -> bool {
-        if x < 1 || x > self.width - 1 || y < 1 || y > self.height - 1 {
-            return false;
-        }
-        let idx = self.xy_idx(x, y);
-        !self.blocked_tiles[idx]
-    }
-
-    pub fn is_floor_available(&self, x: i32, y: i32) -> bool {
-        self.is_inside_map(x, y) && !self.blocked_tiles[self.xy_idx(x, y)]
     }
 }

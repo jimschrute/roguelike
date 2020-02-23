@@ -155,8 +155,9 @@ fn main() {
     gs.world.register::<WantsToDrinkPotion>();
     gs.world.register::<WantsToDropItem>();
 
-    let seed: u64 = 123456;
+    let seed: u64 = 25021990;
     let mut rng = rltk::RandomNumberGenerator::seeded(seed);
+    println!("generating world seed {}", seed);
 
     let map = Map::new_rooms_and_corridors(&mut rng);
 
