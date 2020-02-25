@@ -1,6 +1,6 @@
 use crate::{
-    BlocksTile, CombatStats, Item, Map, Monster, Name, Player, Position, Potion, Rect, Renderable,
-    Viewshed,
+    AreaOfEffect, BlocksTile, CombatStats, Confusion, Consumable, InflictsDamage, Item, Map,
+    Monster, Name, Player, Position, ProvidesHealing, Ranged, Rect, Renderable, Viewshed,
 };
 use rltk::{RandomNumberGenerator, RGB};
 use specs::prelude::*;
@@ -62,7 +62,7 @@ pub fn spawn_room(world: &mut World, room: &Rect, map: &Map) {
 
     for idx in item_spawn_points {
         let pos = map.pos_from_idx(idx);
-        health_potion(world, pos);
+        random_item(world, pos);
     }
 }
 
@@ -161,6 +161,20 @@ fn monster<S: ToString>(world: &mut World, pos: Position, glyph: u8, name: S) ->
         .build()
 }
 
+pub fn random_item(world: &mut World, pos: Position) {
+    let roll: i32;
+    {
+        let mut rng = world.write_resource::<RandomNumberGenerator>();
+        roll = rng.roll_dice(1, 4);
+    }
+    match roll {
+        1 => health_potion(world, pos),
+        2 => fireball_scroll(world, pos),
+        3 => confusion_scroll(world, pos),
+        _ => magic_missile_scroll(world, pos),
+    }
+}
+
 fn health_potion(ecs: &mut World, pos: Position) {
     ecs.create_entity()
         .with(pos)
@@ -168,12 +182,72 @@ fn health_potion(ecs: &mut World, pos: Position) {
             glyph: rltk::to_cp437('¡'),
             fg: RGB::named(rltk::MAGENTA),
             bg: RGB::named(rltk::BLACK),
-            index: 1,
+            index: 10,
         })
         .with(Name {
             name: "Health Potion".to_string(),
         })
         .with(Item {})
-        .with(Potion { heal_amount: 8 })
+        .with(Consumable {})
+        .with(ProvidesHealing { heal_amount: 8 })
+        .build();
+}
+
+fn magic_missile_scroll(ecs: &mut World, pos: Position) {
+    ecs.create_entity()
+        .with(pos)
+        .with(Renderable {
+            glyph: rltk::to_cp437('S'),
+            fg: RGB::named(rltk::CYAN),
+            bg: RGB::named(rltk::BLACK),
+            index: 10,
+        })
+        .with(Name {
+            name: "Magic Missile Scroll".to_string(),
+        })
+        .with(Item {})
+        .with(Consumable {})
+        .with(Ranged { range: 6 })
+        .with(InflictsDamage { damage: 8 })
+        .build();
+}
+
+fn fireball_scroll(ecs: &mut World, pos: Position) {
+    ecs.create_entity()
+        .with(pos)
+        .with(Renderable {
+            glyph: rltk::to_cp437('S'),
+            fg: RGB::named(rltk::ORANGE),
+            bg: RGB::named(rltk::BLACK),
+            index: 10,
+        })
+        .with(Name {
+            name: "Fireball Scroll".to_string(),
+        })
+        .with(Item {})
+        .with(Consumable {})
+        .with(Ranged { range: 6 })
+        .with(InflictsDamage { damage: 20 })
+        .with(AreaOfEffect { radius: 3 })
+        .build();
+}
+
+fn confusion_scroll(ecs: &mut World, pos: Position) {
+    ecs.create_entity()
+        .with(pos)
+        .with(Renderable {
+            glyph: rltk::to_cp437('S'),
+            fg: RGB::named(rltk::IVORY),
+            bg: RGB::named(rltk::BLACK),
+            index: 10,
+        })
+        .with(Name {
+            name: "Confusion Scroll".to_string(),
+        })
+        .with(Item {})
+        .with(Consumable {})
+        .with(Ranged { range: 6 })
+        .with(AreaOfEffect { radius: 3 })
+        .with(Confusion { turns: 4 })
         .build();
 }

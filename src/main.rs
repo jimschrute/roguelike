@@ -24,6 +24,7 @@ pub enum RunState {
     MonsterTurn,
     ShowInventory,
     ShowDropItem,
+    ShowTargeting { range: i32, item: Entity },
 }
 
 pub struct State {
@@ -79,16 +80,45 @@ impl State {
                 self.run_systems();
                 RunState::AwaitingInput
             }
-            RunState::ShowInventory => match gui::show_inventory(self, ctx) {
-                gui::ItemMenuResult::Selected(entity) => {
-                    let mut intent = self.world.write_storage::<WantsToDrinkPotion>();
+            RunState::ShowTargeting { range, item } => match gui::ranged_target(self, ctx, range) {
+                gui::ItemMenuResult::Target(target) => {
+                    let mut intent = self.world.write_storage::<WantsToUseItem>();
                     intent
                         .insert(
                             *self.world.fetch::<Entity>(),
-                            WantsToDrinkPotion { potion: entity },
+                            WantsToUseItem {
+                                item,
+                                target: Some(target),
+                            },
                         )
-                        .expect("Unable to insert select inventory intent");
+                        .expect("Unable to insert use item intent");
                     RunState::PlayerTurn
+                }
+                gui::ItemMenuResult::Cancel => RunState::AwaitingInput,
+                _ => RunState::ShowTargeting { range, item },
+            },
+            RunState::ShowInventory => match gui::show_inventory(self, ctx) {
+                gui::ItemMenuResult::Selected(entity) => {
+                    let ranged = self.world.read_storage::<Ranged>();
+                    let ranged_item = ranged.get(entity);
+                    if let Some(ranged_item) = ranged_item {
+                        RunState::ShowTargeting {
+                            range: ranged_item.range,
+                            item: entity,
+                        }
+                    } else {
+                        let mut intent = self.world.write_storage::<WantsToUseItem>();
+                        intent
+                            .insert(
+                                *self.world.fetch::<Entity>(),
+                                WantsToUseItem {
+                                    item: entity,
+                                    target: None,
+                                },
+                            )
+                            .expect("Unable to insert select inventory intent");
+                        RunState::PlayerTurn
+                    }
                 }
                 gui::ItemMenuResult::Cancel => RunState::AwaitingInput,
                 _ => RunState::ShowInventory,
@@ -124,8 +154,8 @@ impl State {
         damage.run_now(&self.world);
         let mut pickup = systems::Inventory {};
         pickup.run_now(&self.world);
-        let mut potion_usage = systems::PotionUsage {};
-        potion_usage.run_now(&self.world);
+        let mut item_usage = systems::ItemUsage {};
+        item_usage.run_now(&self.world);
         let mut item_drop = systems::ItemDrop {};
         item_drop.run_now(&self.world);
         let mut monster_ai = systems::MonsterAI {};
@@ -149,11 +179,17 @@ fn main() {
     gs.world.register::<WantsToMelee>();
     gs.world.register::<SufferDamage>();
     gs.world.register::<Item>();
-    gs.world.register::<Potion>();
+    gs.world.register::<ProvidesHealing>();
     gs.world.register::<WantsToPickupItem>();
     gs.world.register::<InBackpack>();
-    gs.world.register::<WantsToDrinkPotion>();
+    gs.world.register::<WantsToUseItem>();
     gs.world.register::<WantsToDropItem>();
+    gs.world.register::<Consumable>();
+    gs.world.register::<ProvidesHealing>();
+    gs.world.register::<Ranged>();
+    gs.world.register::<InflictsDamage>();
+    gs.world.register::<AreaOfEffect>();
+    gs.world.register::<Confusion>();
 
     let seed: u64 = 25021990;
     let mut rng = rltk::RandomNumberGenerator::seeded(seed);

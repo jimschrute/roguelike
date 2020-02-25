@@ -16,8 +16,8 @@ pub use damage::*;
 pub mod inventory;
 pub use inventory::*;
 
-pub mod potion_usage;
-pub use potion_usage::*;
+pub mod item_usage;
+pub use item_usage::*;
 
 pub mod item_drop;
 pub use item_drop::*;

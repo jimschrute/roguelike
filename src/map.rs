@@ -131,11 +131,6 @@ impl Map {
                         x: prev_x,
                         y: prev_y,
                     } = old_room.center();
-                    println!(
-                        "new room: {:?}\nto old room: {:?}",
-                        new_room.center(),
-                        old_room.center(),
-                    );
                     if rng.range(0, 2) == 1 {
                         map.apply_horizontal_tunnel(prev_x, new_x, prev_y);
                         map.apply_vertical_tunnel(prev_y, new_y, new_x);

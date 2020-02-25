@@ -1,4 +1,4 @@
-use crate::{Map, Monster, Name, Position, RunState, Viewshed, WantsToMelee};
+use crate::{Confusion, Map, Monster, Name, Position, RunState, Viewshed, WantsToMelee};
 use rltk::{console, Algorithm2D, Point};
 use specs::prelude::*;
 
@@ -16,6 +16,7 @@ impl<'a> System<'a> for MonsterAI {
         ReadStorage<'a, Name>,
         WriteStorage<'a, Position>,
         WriteStorage<'a, WantsToMelee>,
+        WriteStorage<'a, Confusion>,
     );
 
     fn run(&mut self, data: Self::SystemData) {
@@ -30,6 +31,7 @@ impl<'a> System<'a> for MonsterAI {
             name,
             mut position,
             mut wants_to_melee,
+            mut confusion,
         ) = data;
 
         if *run_state != RunState::MonsterTurn {
@@ -39,7 +41,25 @@ impl<'a> System<'a> for MonsterAI {
         for (entity, viewshed, _monster, name, pos) in
             (&entities, &mut viewshed, &monster, &name, &mut position).join()
         {
-            if viewshed.visible_tiles.contains(&*player_pos) {
+            let is_confused = confusion.get_mut(entity);
+            let can_act = if let Some(is_confused) = is_confused {
+                is_confused.turns -= 1;
+                console::log(
+                    format!("{} is still confused for {} turns",
+                    name.name,
+                    is_confused.turns,)
+                );
+                if is_confused.turns < 1 {
+                    confusion.remove(entity);
+                    true
+                } else {
+                    false
+                }
+            } else {
+                true
+            };
+
+            if can_act && viewshed.visible_tiles.contains(&*player_pos) {
                 let distance =
                     rltk::DistanceAlg::Pythagoras.distance2d(Point::new(pos.x, pos.y), *player_pos);
                 if distance <= 2.0 {
@@ -60,15 +80,7 @@ impl<'a> System<'a> for MonsterAI {
 
                 let start = map.point2d_to_index(Point::new(pos.x, pos.y));
                 let end = map.point2d_to_index(Point::new(player_pos.x, player_pos.y));
-                console::log(format!(
-                    "calculating star search start {} end {}",
-                    start, end
-                ));
                 let path = rltk::a_star_search(start, end, &*map);
-                console::log(format!(
-                    "path success {}\n >> steps {:?}",
-                    path.success, path.steps
-                ));
 
                 if path.success && path.steps.len() > 1 {
                     let idx = map.xy_idx(pos.x, pos.y);

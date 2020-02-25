@@ -1,4 +1,4 @@
-use crate::{CombatStats, GameLog, InBackpack, Map, Name, Player, Position, State};
+use crate::{CombatStats, GameLog, InBackpack, Map, Name, Player, Position, State, Viewshed};
 use rltk::{Console, Point, Rltk, VirtualKeyCode, RGB};
 use specs::prelude::*;
 
@@ -167,6 +167,7 @@ pub enum ItemMenuResult {
     Cancel,
     NoResponse,
     Selected(Entity),
+    Target(Point),
 }
 
 pub fn show_inventory(game_state: &mut State, ctx: &mut Rltk) -> ItemMenuResult {
@@ -260,6 +261,56 @@ pub fn show_backpack_menu(game_state: &mut State, ctx: &mut Rltk, title: &str) -
     }
 }
 
+pub fn ranged_target(game_state: &mut State, ctx: &mut Rltk, range: i32) -> ItemMenuResult {
+    ctx.print_color(
+        5,
+        0,
+        RGB::named(rltk::YELLOW),
+        RGB::named(rltk::BLACK),
+        "Select Target:",
+    );
+    if let Some(VirtualKeyCode::Escape) = ctx.key {
+        return ItemMenuResult::Cancel;
+    }
+
+    let mouse_pos = ctx.mouse_pos();
+    let available_cells = set_ranged_cells(range, ctx, &game_state.world);
+    if available_cells.len() < 1 {
+        return ItemMenuResult::Cancel;
+    }
+
+    let valid_target = available_cells
+        .iter()
+        .any(|cell| cell.x == mouse_pos.0 && cell.y == mouse_pos.1);
+    ctx.set_bg(mouse_pos.0, mouse_pos.1, RGB::named(rltk::CYAN));
+    if ctx.left_click && valid_target {
+        return ItemMenuResult::Target(Point::new(mouse_pos.0, mouse_pos.1));
+    }
+
+    ItemMenuResult::NoResponse
+}
+
+fn set_ranged_cells(range: i32, ctx: &mut Rltk, world: &World) -> Vec<Point> {
+    let mut available_cells = Vec::new();
+
+    let player_entity = world.fetch::<Entity>();
+    let player_pos = world.fetch::<Point>();
+    let viewsheds = world.read_storage::<Viewshed>();
+
+    let visible = viewsheds.get(*player_entity);
+    if let Some(visible) = visible {
+        for idx in visible.visible_tiles.iter() {
+            let distance = rltk::DistanceAlg::Pythagoras.distance2d(*player_pos, *idx);
+            if distance <= range as f32 {
+                ctx.set_bg(idx.x, idx.y, RGB::named(rltk::BLUE));
+                available_cells.push(*idx);
+            }
+        }
+    }
+
+    available_cells
+}
+
 pub fn show_path(map: &Map, player_position: &Point, ctx: &mut Rltk) {
     use rltk::Algorithm2D;
     // Either render the proposed path or run along it
@@ -283,12 +334,7 @@ pub fn show_path(map: &Map, player_position: &Point, ctx: &mut Rltk) {
     );
 
     if map.is_floor_available(map_pos.x, map_pos.y) {
-        println!(
-            "calculating star search start {} end {}",
-            player_idx, mouse_idx
-        );
         let path = rltk::a_star_search(player_idx, mouse_idx, map);
-        println!("path success {}\n >> steps {:?}", path.success, path.steps);
         if path.success {
             for step in path.steps.iter().skip(1) {
                 let step_pos = map.pos_from_idx(*step);

@@ -1,4 +1,4 @@
-use rltk::RGB;
+use rltk::{Point, RGB};
 use specs::{Component, Entity, VecStorage};
 
 #[derive(Component, Debug)]
@@ -68,12 +68,6 @@ pub struct SufferDamage {
 #[storage(VecStorage)]
 pub struct Item {}
 
-#[derive(Component, Debug)]
-#[storage(VecStorage)]
-pub struct Potion {
-    pub heal_amount: i32,
-}
-
 #[derive(Component, Debug, Clone)]
 #[storage(VecStorage)]
 pub struct InBackpack {
@@ -89,12 +83,47 @@ pub struct WantsToPickupItem {
 
 #[derive(Component, Debug)]
 #[storage(VecStorage)]
-pub struct WantsToDrinkPotion {
-    pub potion: Entity,
+pub struct WantsToUseItem {
+    pub item: Entity,
+    pub target: Option<Point>,
 }
 
 #[derive(Component, Debug)]
 #[storage(VecStorage)]
 pub struct WantsToDropItem {
     pub item: Entity,
+}
+
+#[derive(Component, Debug)]
+#[storage(VecStorage)]
+pub struct Consumable {}
+
+#[derive(Component, Debug)]
+#[storage(VecStorage)]
+pub struct ProvidesHealing {
+    pub heal_amount: i32,
+}
+
+#[derive(Component, Debug)]
+#[storage(VecStorage)]
+pub struct Ranged {
+    pub range: i32,
+}
+
+#[derive(Component, Debug)]
+#[storage(VecStorage)]
+pub struct InflictsDamage {
+    pub damage: i32,
+}
+
+#[derive(Component, Debug)]
+#[storage(VecStorage)]
+pub struct AreaOfEffect {
+    pub radius: i32,
+}
+
+#[derive(Component, Debug)]
+#[storage(VecStorage)]
+pub struct Confusion {
+    pub turns: i32,
 }
