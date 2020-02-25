@@ -1,7 +1,10 @@
 use rltk::{Point, RGB};
+use serde::{Deserialize, Serialize};
+use specs::prelude::*;
+use specs::saveload::ConvertSaveload;
 use specs::{Component, Entity, VecStorage};
 
-#[derive(Component, Debug)]
+#[derive(Component, ConvertSaveload, Clone, Debug)]
 #[storage(VecStorage)]
 pub struct Position {
     pub x: i32,
@@ -17,7 +20,7 @@ pub struct Renderable {
     pub index: u8,
 }
 
-#[derive(Component, Debug)]
+#[derive(Component, Debug, Serialize, Deserialize)]
 #[storage(VecStorage)]
 pub struct Player {}
 
@@ -127,3 +130,5 @@ pub struct AreaOfEffect {
 pub struct Confusion {
     pub turns: i32,
 }
+
+pub struct SerializeMe;

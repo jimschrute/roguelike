@@ -1,6 +1,99 @@
-use crate::{CombatStats, GameLog, InBackpack, Map, Name, Player, Position, State, Viewshed};
+use crate::{
+    CombatStats, GameLog, InBackpack, Map, Name, Player, Position, RunState, State, Viewshed,
+};
 use rltk::{Console, Point, Rltk, VirtualKeyCode, RGB};
 use specs::prelude::*;
+
+#[derive(PartialEq, Copy, Clone)]
+pub enum MainMenuSelection {
+    NewGame,
+    LoadGame,
+    Quit,
+}
+
+#[derive(PartialEq, Copy, Clone)]
+pub enum MainMenuResult {
+    NoSelection(MainMenuSelection),
+    Selected(MainMenuSelection),
+}
+
+#[derive(PartialEq, Copy, Clone)]
+pub enum ItemMenuResult {
+    Cancel,
+    NoResponse,
+    Selected(Entity),
+    Target(Point),
+}
+
+pub fn main_menu(runstate: &RunState, ctx: &mut Rltk) -> MainMenuResult {
+    ctx.print_color_centered(
+        15,
+        RGB::named(rltk::YELLOW),
+        RGB::named(rltk::BLACK),
+        ">> Rust Roguelike Test Game <<",
+    );
+
+    if let RunState::MainMenu(selection) = runstate {
+        let (new_game_color, load_game_color, quit_game_color) =
+            if *selection == MainMenuSelection::NewGame {
+                (rltk::MAGENTA, rltk::WHITE, rltk::WHITE)
+            } else if *selection == MainMenuSelection::LoadGame {
+                (rltk::WHITE, rltk::MAGENTA, rltk::WHITE)
+            } else {
+                (rltk::WHITE, rltk::WHITE, rltk::MAGENTA)
+            };
+
+        ctx.print_color_centered(
+            24,
+            RGB::named(new_game_color),
+            RGB::named(rltk::BLACK),
+            "Begin New Game",
+        );
+
+        ctx.print_color_centered(
+            25,
+            RGB::named(load_game_color),
+            RGB::named(rltk::BLACK),
+            "Load Game",
+        );
+
+        ctx.print_color_centered(
+            26,
+            RGB::named(quit_game_color),
+            RGB::named(rltk::BLACK),
+            "Quit",
+        );
+
+        match ctx.key {
+            None => return MainMenuResult::NoSelection(*selection),
+            Some(key) => match key {
+                VirtualKeyCode::Escape => {
+                    return MainMenuResult::NoSelection(MainMenuSelection::Quit)
+                }
+                VirtualKeyCode::Up => {
+                    let new_selection = match selection {
+                        MainMenuSelection::NewGame => MainMenuSelection::Quit,
+                        MainMenuSelection::LoadGame => MainMenuSelection::NewGame,
+                        MainMenuSelection::Quit => MainMenuSelection::LoadGame,
+                    };
+                    return MainMenuResult::NoSelection(new_selection);
+                }
+                VirtualKeyCode::Down => {
+                    let new_selection = match selection {
+                        MainMenuSelection::NewGame => MainMenuSelection::LoadGame,
+                        MainMenuSelection::LoadGame => MainMenuSelection::Quit,
+                        MainMenuSelection::Quit => MainMenuSelection::NewGame,
+                    };
+                    return MainMenuResult::NoSelection(new_selection);
+                }
+                VirtualKeyCode::Return => return MainMenuResult::Selected(*selection),
+                _ => return MainMenuResult::NoSelection(*selection),
+            },
+        }
+    }
+
+    MainMenuResult::NoSelection(MainMenuSelection::NewGame)
+}
 
 pub fn draw_ui(world: &World, ctx: &mut Rltk) {
     ctx.draw_box(
@@ -160,14 +253,6 @@ fn draw_tooltips(world: &World, ctx: &mut Rltk) {
             );
         }
     }
-}
-
-#[derive(PartialEq, Copy, Clone)]
-pub enum ItemMenuResult {
-    Cancel,
-    NoResponse,
-    Selected(Entity),
-    Target(Point),
 }
 
 pub fn show_inventory(game_state: &mut State, ctx: &mut Rltk) -> ItemMenuResult {

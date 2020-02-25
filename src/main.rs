@@ -1,5 +1,6 @@
 use rltk::{Console, GameState, Point, Rltk};
 use specs::prelude::*;
+use specs::saveload::{SimpleMarker, SimpleMarkerAllocator};
 use specs::{Join, World, WorldExt};
 
 mod components;
@@ -25,6 +26,8 @@ pub enum RunState {
     ShowInventory,
     ShowDropItem,
     ShowTargeting { range: i32, item: Entity },
+    MainMenu(gui::MainMenuSelection),
+    SaveGame,
 }
 
 pub struct State {
@@ -32,14 +35,42 @@ pub struct State {
 }
 impl GameState for State {
     fn tick(&mut self, ctx: &mut Rltk) {
+        let runstate = self.fetch_runstate();
         ctx.cls();
-        systems::damage::delete_the_dead(&mut self.world);
-        self.process_map(ctx);
-        gui::draw_ui(&self.world, ctx);
-        self.run_systems_and_update_state(ctx);
+        let new_state = match runstate {
+            RunState::MainMenu(_) => {
+                let result = gui::main_menu(&runstate, ctx);
+                match result {
+                    gui::MainMenuResult::NoSelection(selected) => RunState::MainMenu(selected),
+                    gui::MainMenuResult::Selected(selected) => match selected {
+                        gui::MainMenuSelection::NewGame => RunState::PreRun,
+                        gui::MainMenuSelection::LoadGame => RunState::PreRun,
+                        gui::MainMenuSelection::Quit => {
+                            ::std::process::exit(0);
+                        }
+                    },
+                }
+            }
+            _ => self.game_tick(ctx),
+        };
+
+        let mut run_state_writer = self.world.write_resource::<RunState>();
+        *run_state_writer = new_state;
     }
 }
 impl State {
+    fn fetch_runstate(&self) -> RunState {
+        let runstate = self.world.fetch::<RunState>();
+        *runstate
+    }
+
+    fn game_tick(&mut self, ctx: &mut Rltk) -> RunState {
+        systems::damage::delete_the_dead(&mut self.world);
+        self.process_map(ctx);
+        gui::draw_ui(&self.world, ctx);
+        self.run_systems_and_process_state(ctx)
+    }
+
     fn process_map(&mut self, ctx: &mut Rltk) {
         let map = self.world.fetch::<Map>();
         map.draw(ctx);
@@ -58,11 +89,16 @@ impl State {
         }
     }
 
-    fn run_systems_and_update_state(&mut self, ctx: &mut Rltk) {
+    fn run_systems_and_process_state(&mut self, ctx: &mut Rltk) -> RunState {
         let map = (*self.world.fetch::<Map>()).clone();
-        let run_state = *self.world.fetch::<RunState>();
+        let run_state = self.fetch_runstate();
 
-        let new_state = match run_state {
+        match run_state {
+            RunState::MainMenu(_) => RunState::AwaitingInput,
+            RunState::SaveGame => {
+                self.save_game();
+                RunState::MainMenu(gui::MainMenuSelection::LoadGame)
+            }
             RunState::AwaitingInput => {
                 let player_position = *self.world.fetch::<Point>();
                 gui::show_path(&map, &player_position, ctx);
@@ -137,10 +173,13 @@ impl State {
                 gui::ItemMenuResult::Cancel => RunState::AwaitingInput,
                 _ => RunState::ShowDropItem,
             },
-        };
+        }
+    }
 
-        let mut run_state_writer = self.world.write_resource::<RunState>();
-        *run_state_writer = new_state;
+    fn save_game(&self) {
+        let map = self.world.fetch::<Map>();
+        let data = serde_json::to_string(&*map).unwrap();
+        println!("{}", data);
     }
 
     fn run_systems(&mut self) {
@@ -190,6 +229,7 @@ fn main() {
     gs.world.register::<InflictsDamage>();
     gs.world.register::<AreaOfEffect>();
     gs.world.register::<Confusion>();
+    gs.world.register::<SimpleMarker<SerializeMe>>();
 
     let seed: u64 = 25021990;
     let mut rng = rltk::RandomNumberGenerator::seeded(seed);
@@ -199,6 +239,7 @@ fn main() {
 
     let initial_player_pos = map.rooms[0].center();
 
+    gs.world.insert(SimpleMarkerAllocator::<SerializeMe>::new());
     gs.world.insert(rng);
 
     spawner::spawn_map_rooms(&mut gs.world, &map);
@@ -207,9 +248,11 @@ fn main() {
         .insert(Point::new(initial_player_pos.x, initial_player_pos.y));
     let player_entity = spawner::player(&mut gs.world, initial_player_pos);
 
+    let initial_state = RunState::MainMenu(gui::MainMenuSelection::NewGame);
+
     gs.world.insert(map);
     gs.world.insert(player_entity);
-    gs.world.insert(RunState::PreRun);
+    gs.world.insert(initial_state);
     gs.world.insert(gamelog::GameLog {
         entries: vec![String::from("Welcome to Rusty Roguelike")],
     });

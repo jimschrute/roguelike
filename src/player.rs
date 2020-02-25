@@ -103,8 +103,10 @@ pub fn player_input(gs: &mut State, ctx: &mut Rltk) -> RunState {
             VirtualKeyCode::Numpad1 | VirtualKeyCode::B => try_move_player(-1, 1, &mut gs.world),
             // Interactions
             VirtualKeyCode::G => get_item(&mut gs.world),
-            VirtualKeyCode::I => return RunState::ShowInventory,
+            VirtualKeyCode::E => return RunState::ShowInventory,
             VirtualKeyCode::Q => return RunState::ShowDropItem,
+            // Save and Quit
+            VirtualKeyCode::Escape => return RunState::SaveGame,
             _ => return RunState::AwaitingInput,
         },
     }
