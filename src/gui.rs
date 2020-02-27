@@ -43,6 +43,8 @@ pub fn main_menu(runstate: &RunState, ctx: &mut Rltk) -> MainMenuResult {
                 (rltk::WHITE, rltk::WHITE, rltk::MAGENTA)
             };
 
+        let save_exists = crate::save_load::does_save_exist();
+
         ctx.print_color_centered(
             24,
             RGB::named(new_game_color),
@@ -50,12 +52,14 @@ pub fn main_menu(runstate: &RunState, ctx: &mut Rltk) -> MainMenuResult {
             "Begin New Game",
         );
 
-        ctx.print_color_centered(
-            25,
-            RGB::named(load_game_color),
-            RGB::named(rltk::BLACK),
-            "Load Game",
-        );
+        if save_exists {
+            ctx.print_color_centered(
+                25,
+                RGB::named(load_game_color),
+                RGB::named(rltk::BLACK),
+                "Load Game",
+            );
+        }
 
         ctx.print_color_centered(
             26,
@@ -64,6 +68,13 @@ pub fn main_menu(runstate: &RunState, ctx: &mut Rltk) -> MainMenuResult {
             "Quit",
         );
 
+        let mut available_options = Vec::new();
+        available_options.push(MainMenuSelection::NewGame);
+        if save_exists { available_options.push(MainMenuSelection::LoadGame); }
+        available_options.push(MainMenuSelection::Quit);
+
+        let pos = available_options.iter().position(|opt| opt == selection).unwrap_or(0);
+
         match ctx.key {
             None => return MainMenuResult::NoSelection(*selection),
             Some(key) => match key {
@@ -71,19 +82,21 @@ pub fn main_menu(runstate: &RunState, ctx: &mut Rltk) -> MainMenuResult {
                     return MainMenuResult::NoSelection(MainMenuSelection::Quit)
                 }
                 VirtualKeyCode::Up => {
-                    let new_selection = match selection {
-                        MainMenuSelection::NewGame => MainMenuSelection::Quit,
-                        MainMenuSelection::LoadGame => MainMenuSelection::NewGame,
-                        MainMenuSelection::Quit => MainMenuSelection::LoadGame,
+                    let new_pos = if pos == 0 {
+                        available_options.len() - 1
+                    } else {
+                        pos - 1
                     };
+                    let new_selection = available_options[new_pos];
                     return MainMenuResult::NoSelection(new_selection);
                 }
                 VirtualKeyCode::Down => {
-                    let new_selection = match selection {
-                        MainMenuSelection::NewGame => MainMenuSelection::LoadGame,
-                        MainMenuSelection::LoadGame => MainMenuSelection::Quit,
-                        MainMenuSelection::Quit => MainMenuSelection::NewGame,
+                    let new_pos = if pos >= available_options.len() - 1 {
+                        0
+                    } else {
+                        pos + 1
                     };
+                    let new_selection = available_options[new_pos];
                     return MainMenuResult::NoSelection(new_selection);
                 }
                 VirtualKeyCode::Return => return MainMenuResult::Selected(*selection),

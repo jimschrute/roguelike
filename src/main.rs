@@ -3,6 +3,9 @@ use specs::prelude::*;
 use specs::saveload::{SimpleMarker, SimpleMarkerAllocator};
 use specs::{Join, World, WorldExt};
 
+#[macro_use]
+extern crate specs_derive;
+
 mod components;
 use components::*;
 mod map;
@@ -16,6 +19,7 @@ use gamelog::*;
 mod gui;
 mod spawner;
 mod systems;
+mod save_load;
 
 #[derive(PartialEq, Copy, Clone)]
 pub enum RunState {
@@ -44,7 +48,11 @@ impl GameState for State {
                     gui::MainMenuResult::NoSelection(selected) => RunState::MainMenu(selected),
                     gui::MainMenuResult::Selected(selected) => match selected {
                         gui::MainMenuSelection::NewGame => RunState::PreRun,
-                        gui::MainMenuSelection::LoadGame => RunState::PreRun,
+                        gui::MainMenuSelection::LoadGame => {
+                            save_load::load_game(&mut self.world);
+                            save_load::delete_save();
+                            RunState::AwaitingInput
+                        },
                         gui::MainMenuSelection::Quit => {
                             ::std::process::exit(0);
                         }
@@ -96,7 +104,7 @@ impl State {
         match run_state {
             RunState::MainMenu(_) => RunState::AwaitingInput,
             RunState::SaveGame => {
-                self.save_game();
+                save_load::save_game(&mut self.world);
                 RunState::MainMenu(gui::MainMenuSelection::LoadGame)
             }
             RunState::AwaitingInput => {
@@ -229,6 +237,7 @@ fn main() {
     gs.world.register::<InflictsDamage>();
     gs.world.register::<AreaOfEffect>();
     gs.world.register::<Confusion>();
+    gs.world.register::<SerializationHelper>();
     gs.world.register::<SimpleMarker<SerializeMe>>();
 
     let seed: u64 = 25021990;
