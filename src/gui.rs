@@ -133,6 +133,10 @@ pub fn draw_ui(world: &World, ctx: &mut Rltk) {
         &format!("Frame Time: {} ms", ctx.frame_time_ms),
     );
 
+    let map = world.fetch::<Map>();
+    let depth = format!("Level: {}", map.depth);
+    ctx.print_color(2, 43, RGB::named(rltk::YELLOW), RGB::named(rltk::BLACK), &depth);
+
     let combat_stats = world.read_storage::<CombatStats>();
     let players = world.read_storage::<Player>();
     for (_player, stats) in (&players, &combat_stats).join() {

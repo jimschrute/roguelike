@@ -1,6 +1,6 @@
 use super::{
-    CombatStats, GameLog, Item, Map, Player, Position, RunState, State, Viewshed, WantsToMelee,
-    WantsToPickupItem,
+    CombatStats, GameLog, Item, Map, Player, Position, RunState, State, TileType, Viewshed,
+    WantsToMelee, WantsToPickupItem, Monster,
 };
 use rltk::{console, Point, Rltk, VirtualKeyCode};
 use specs::prelude::*;
@@ -101,14 +101,61 @@ pub fn player_input(gs: &mut State, ctx: &mut Rltk) -> RunState {
             VirtualKeyCode::Numpad7 | VirtualKeyCode::U => try_move_player(-1, -1, &mut gs.world),
             VirtualKeyCode::Numpad3 | VirtualKeyCode::N => try_move_player(1, 1, &mut gs.world),
             VirtualKeyCode::Numpad1 | VirtualKeyCode::B => try_move_player(-1, 1, &mut gs.world),
+            // Skip Turns
+            VirtualKeyCode::Numpad5 | VirtualKeyCode::Space => return skip_turn(&mut gs.world),
             // Interactions
             VirtualKeyCode::G => get_item(&mut gs.world),
             VirtualKeyCode::E => return RunState::ShowInventory,
             VirtualKeyCode::Q => return RunState::ShowDropItem,
+            VirtualKeyCode::Period => return try_next_level(&mut gs.world),
             // Save and Quit
             VirtualKeyCode::Escape => return RunState::SaveGame,
             _ => return RunState::AwaitingInput,
         },
     }
     return RunState::PlayerTurn;
+}
+
+pub fn try_next_level(world: &mut World) -> RunState {
+    let player_pos = world.fetch::<Point>();
+    let map = world.fetch::<Map>();
+    let player_idx = map.xy_idx(player_pos.x, player_pos.y);
+    if map.tiles[player_idx] == TileType::DownStairs {
+        RunState::NextLevel
+    } else {
+        let mut gamelog = world.fetch_mut::<GameLog>();
+        gamelog
+            .entries
+            .push("There is no way down from here.".to_string());
+        RunState::AwaitingInput
+    }
+}
+
+fn skip_turn(world: &mut World) -> RunState {
+    let player_entity = world.fetch::<Entity>();
+    let viewshed_components = world.read_storage::<Viewshed>();
+    let monsters = world.read_storage::<Monster>();
+
+    let map = world.fetch::<Map>();
+
+    let mut can_heal = true;
+    let viewshed = viewshed_components.get(*player_entity).unwrap();
+    for tile in viewshed.visible_tiles.iter() {
+        let idx = map.xy_idx(tile.x, tile.y);
+        for entity_id in map.tile_content[idx].iter() {
+            let mob = monsters.get(*entity_id);
+            match mob {
+                None => {}
+                Some(_) => { can_heal = false; }
+            }
+        }
+    }
+
+    if can_heal {
+        let mut health_components = world.write_storage::<CombatStats>();
+        let player_hp = health_components.get_mut(*player_entity).unwrap();
+        player_hp.hp = i32::min(player_hp.hp + 1, player_hp.max_hp);
+    }
+
+    RunState::PlayerTurn
 }

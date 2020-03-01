@@ -1,7 +1,7 @@
 use crate::{
     AreaOfEffect, BlocksTile, CombatStats, Confusion, Consumable, InflictsDamage, Item, Map,
     Monster, Name, Player, Position, ProvidesHealing, Ranged, Rect, Renderable, SerializeMe,
-    Viewshed,
+    TileType, Viewshed,
 };
 use rltk::{RandomNumberGenerator, RGB};
 use specs::prelude::*;
@@ -84,7 +84,7 @@ fn generate_monsters_for_room(
             let x = (room.x1 + rng.roll_dice(1, i32::abs(room.x2 - room.x1))) as usize;
             let y = (room.y1 + rng.roll_dice(1, i32::abs(room.y2 - room.y1))) as usize;
             let idx = (y * map.width as usize) + x;
-            if !monsters.contains(&idx) {
+            if !monsters.contains(&idx) && map.tiles[idx] == TileType::Floor {
                 monsters.push(idx);
                 added = true;
             }

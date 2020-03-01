@@ -32,6 +32,7 @@ pub enum RunState {
     ShowTargeting { range: i32, item: Entity },
     MainMenu(gui::MainMenuSelection),
     SaveGame,
+    NextLevel,
 }
 
 pub struct State {
@@ -103,6 +104,10 @@ impl State {
 
         match run_state {
             RunState::MainMenu(_) => RunState::AwaitingInput,
+            RunState::NextLevel => {
+                self.goto_next_level();
+                RunState::PreRun
+            }
             RunState::SaveGame => {
                 save_load::save_game(&mut self.world);
                 RunState::MainMenu(gui::MainMenuSelection::LoadGame)
@@ -184,12 +189,6 @@ impl State {
         }
     }
 
-    fn save_game(&self) {
-        let map = self.world.fetch::<Map>();
-        let data = serde_json::to_string(&*map).unwrap();
-        println!("{}", data);
-    }
-
     fn run_systems(&mut self) {
         let mut map_indexing = systems::MapIndexing {};
         map_indexing.run_now(&self.world);
@@ -208,6 +207,89 @@ impl State {
         let mut monster_ai = systems::MonsterAI {};
         monster_ai.run_now(&self.world);
         self.world.maintain();
+    }
+
+    fn goto_next_level(&mut self) {
+        // Delete entities that aren't the player or his/her equipment
+        let to_delete = self.entities_to_remove_on_level_change();
+        for target in to_delete {
+            self.world.delete_entity(target).expect("Unable to delete entity");
+        }
+
+        // Build a new map and place the player
+        let map;
+        {
+            let mut map_resource = self.world.write_resource::<Map>();
+            let new_depth = map_resource.depth + 1;
+            let mut new_rng = rltk::RandomNumberGenerator::new(); // TODO: seed strategy
+            *map_resource = Map::new_rooms_and_corridors(&mut new_rng, new_depth);
+            map = map_resource.clone();
+        }
+
+        // Spawn bad guys
+        for room in map.rooms.iter().skip(1) {
+            spawner::spawn_room(&mut self.world, room, &map);
+        }
+
+        // Place the player and update resources
+        let player_position = map.rooms[0].center();
+        let mut player_point = self.world.write_resource::<Point>();
+        *player_point = Point::new(player_position.x, player_position.y);
+        let mut position_components = self.world.write_storage::<Position>();
+        let player_entity = self.world.fetch::<Entity>();
+        let player_pos_comp = position_components.get_mut(*player_entity);
+        if let Some(player_pos_comp) = player_pos_comp {
+            player_pos_comp.x = player_position.x;
+            player_pos_comp.y = player_position.y;
+        }
+
+        // Mark the player's visibility as dirty
+        let mut viewshed_components = self.world.write_storage::<Viewshed>();
+        let vs = viewshed_components.get_mut(*player_entity);
+        if let Some(vs) = vs {
+            vs.dirty = true;
+        }
+
+        // Notify the player and give them some health
+        let mut gamelog = self.world.fetch_mut::<gamelog::GameLog>();
+        gamelog.entries.push("You descend to the next level, and take a moment to heal.".to_string());
+        let mut player_health_store = self.world.write_storage::<CombatStats>();
+        let player_health = player_health_store.get_mut(*player_entity);
+        if let Some(player_health) = player_health {
+            player_health.hp = player_health.max_hp;
+        }
+    }
+
+    fn entities_to_remove_on_level_change(&mut self) -> Vec<Entity> {
+        let entities = self.world.entities();
+        let player = self.world.read_storage::<Player>();
+        let backpack = self.world.read_storage::<InBackpack>();
+        let player_entity = self.world.fetch::<Entity>();
+
+        let mut to_delete : Vec<Entity> = Vec::new();
+        for entity in entities.join() {
+            let mut should_delete = true;
+
+            // Don't delete the player
+            let p = player.get(entity);
+            if let Some(_p) = p {
+                should_delete = false;
+            }
+
+            // Don't delete the player's equipment
+            let bp = backpack.get(entity);
+            if let Some(bp) = bp {
+                if bp.owner == *player_entity {
+                    should_delete = false;
+                }
+            }
+
+            if should_delete {
+                to_delete.push(entity);
+            }
+        }
+
+        to_delete
     }
 }
 
@@ -244,7 +326,7 @@ fn main() {
     let mut rng = rltk::RandomNumberGenerator::seeded(seed);
     println!("generating world seed {}", seed);
 
-    let map = Map::new_rooms_and_corridors(&mut rng);
+    let map = Map::new_rooms_and_corridors(&mut rng, 1);
 
     let initial_player_pos = map.rooms[0].center();
 

@@ -7,7 +7,7 @@ use std::cmp::{max, min};
 
 pub const MAP_WIDTH: i32 = 80;
 pub const MAP_HEIGHT: i32 = 43;
-pub const MAX_ROOMS: usize = 20;
+pub const MAX_ROOMS: usize = 6;
 pub const MAP_SIZE: usize = (MAP_WIDTH * MAP_HEIGHT) as usize;
 pub const MIN_ROOM_SIZE: i32 = 3;
 pub const MAX_ROOM_SIZE: i32 = 6;
@@ -16,6 +16,7 @@ pub const MAX_ROOM_SIZE: i32 = 6;
 pub enum TileType {
     Floor,
     Wall,
+    DownStairs,
 }
 
 #[derive(PartialEq, Clone, Serialize, Deserialize)]
@@ -27,6 +28,7 @@ pub struct Map {
     pub revealed_tiles: Vec<bool>,
     pub visible_tiles: Vec<bool>,
     pub blocked_tiles: Vec<bool>,
+    pub depth: i32,
 
     #[serde(skip_serializing, skip_deserializing)]
     pub tile_content: Vec<Vec<Entity>>,
@@ -89,6 +91,7 @@ impl Map {
                 let (glyph, mut fg) = match tile {
                     TileType::Floor => (rltk::to_cp437('•'), RGB::from_f32(0.243, 0.537, 0.282)),
                     TileType::Wall => (rltk::to_cp437('#'), RGB::from_f32(0.451, 0.243, 0.224)),
+                    TileType::DownStairs => (rltk::to_cp437('v'), RGB::from_f32(0., 1.0, 1.0)),
                 };
                 if !self.visible_tiles[idx] {
                     fg = fg.to_greyscale()
@@ -105,7 +108,7 @@ impl Map {
         }
     }
 
-    pub fn new_rooms_and_corridors(rng: &mut RandomNumberGenerator) -> Map {
+    pub fn new_rooms_and_corridors(rng: &mut RandomNumberGenerator, depth: i32) -> Map {
         let mut map = Map {
             tiles: vec![TileType::Wall; MAP_SIZE],
             rooms: Vec::new(),
@@ -115,6 +118,7 @@ impl Map {
             visible_tiles: vec![false; MAP_SIZE],
             blocked_tiles: vec![false; MAP_SIZE],
             tile_content: vec![Vec::new(); MAP_SIZE],
+            depth,
         };
 
         while map.rooms.len() < MAX_ROOMS {
@@ -146,6 +150,10 @@ impl Map {
                 map.rooms.push(new_room);
             }
         }
+
+        let stairs_position = map.rooms[MAX_ROOMS-1].center();
+        let stairs_idx = map.idx_from_pos(stairs_position);
+        map.tiles[stairs_idx] = TileType::DownStairs;
 
         map
     }
